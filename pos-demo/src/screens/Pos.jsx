@@ -143,172 +143,178 @@ export default function Pos({ staff, shift, onLock, onShiftClosed }) {
           </button>
         }
       />
-      <nav className="pos-tabs" aria-label="Cashier screens">
-        <button data-color="apricot" aria-current={view === 'menu' ? 'page' : undefined} onClick={() => setView('menu')}>
-          <Icon name="pos" size={20} />Menu{cart.length > 0 && view !== 'menu' && <span className="pill hotpill">{cart.reduce((n, l) => n + l.qty, 0)} in order</span>}
-        </button>
-        <button data-color="marigold" aria-current={view === 'orders' ? 'page' : undefined} onClick={() => setView('orders')}>
-          <Icon name="list" size={20} />Orders{unserved > 0 && <span className="pill promo">{unserved} to serve</span>}
-        </button>
-        <button data-color="coral" aria-current={view === 'shift' ? 'page' : undefined} onClick={() => setView('shift')}>
-          <Icon name="cash" size={20} />My shift
-        </button>
-      </nav>
       {offline && (
         <div className="offline-banner">
           <Icon name="wifi" size={18} />No internet. Keep selling: orders are saved on this tablet and sent when the connection returns. The kitchen won't see new orders until then.
         </div>
       )}
-      {view === 'orders' && <OrdersView shift={shift} staff={staff} />}
-      {view === 'shift' && <ShiftView staff={staff} shift={shift} onShiftClosed={onShiftClosed} />}
-      <div className="pos" hidden={view !== 'menu'}>
-        <section className="catalog" aria-label="Menu">
-          {activePromos.length > 0 && (
-            <div className="promo-strip">
-              {activePromos.map((p) => <span key={p.id} className="pill promo">{p.name}</span>)}
-            </div>
-          )}
-          <div className="menu-search">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-            <input id="menu-search" ref={searchRef} type="search" autoComplete="off" placeholder="Search the menu, e.g. latte, ube, silog"
-              value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={onSearchKey} aria-label="Search products" />
-            {search && <button className="btn ghost sm" onClick={() => { setSearch(''); searchRef.current && searchRef.current.focus(); }}>Clear</button>}
-          </div>
-          {words.length > 0 ? (
-            <div className="search-note">
-              <strong>{shown.length} {shown.length === 1 ? 'item' : 'items'}</strong> match “{search.trim()}”
-              {shown.length > 0 && <span className="muted"> · press Enter to add the first one</span>}
-            </div>
-          ) : (<>
-          <div className="groups" role="toolbar" aria-label="Menu groups">
-            <button data-group="all" aria-pressed={group === 'all'} onClick={() => pickGroup('all')}>
-              All <span className="gcount">{products.length}</span>
-            </button>
-            {GROUPS.map((g) => (
-              <button key={g.id} style={{ '--g': g.color }} aria-pressed={group === g.id} onClick={() => pickGroup(g.id)}>
-                {g.name} <span className="gcount">{products.filter((p) => groupOf(p.categoryId) === g.id).length}</span>
-              </button>
-            ))}
-          </div>
-          {subCats.length > 1 && (
-            <div className="cats sub" role="toolbar" aria-label="Categories" style={{ '--g': GROUPS.find((g) => g.id === group).color }}>
-              <button aria-pressed={cat === 'all'} onClick={() => setCat('all')}>All {GROUPS.find((g) => g.id === group).name.toLowerCase()}</button>
-              {subCats.map((c) => <button key={c.id} aria-pressed={cat === c.id} onClick={() => setCat(c.id)}>{c.name}</button>)}
-            </div>
-          )}
-          </>)}
-          {shown.length === 0 && (
-            <div className="empty big">
-              <strong>No menu item matches “{search.trim()}”</strong>
-              <span className="small">Check the spelling, or try part of the name.</span>
-              <button className="btn" onClick={() => setSearch('')}>Clear search</button>
-            </div>
-          )}
-          <div className="products">
-            {shown.map((p) => {
-              const promo = activePromos.find((pr) => promoTouches(pr, p));
-              return (
-                <button key={p.id} className="product" style={{ '--cat': GROUPS.find((g) => g.id === groupOf(p.categoryId)).color }} disabled={!p.available} onClick={() => add(p)}>
-                  <span className="ptop">
-                    <span className="swatch" />
-                    {!p.available ? <span className="pill neutral">Sold out</span> : promo ? <span className="pill promo">Promo</span> : null}
-                  </span>
-                  <span className="name">{p.name}</span>
-                  <span className="price num">{pesoShort(p.price)}</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {cart.length > 0 && view === 'menu' && (
-          <button className="mobile-orderbar btn hot lg" onClick={() => document.getElementById('ticket').scrollIntoView({ behavior: 'smooth' })}>
-            View order · {cart.reduce((n, l) => n + l.qty, 0)} items · {peso(totals.total)}
+      <div className="pos-body">
+        <nav className="pos-tabs" aria-label="Cashier screens">
+          <button data-color="apricot" aria-current={view === 'menu' ? 'page' : undefined} onClick={() => setView('menu')}>
+            <Icon name="pos" size={24} /><span className="tab-label">Menu</span>
+            {cart.length > 0 && view !== 'menu' && <span className="tab-badge">{cart.reduce((n, l) => n + l.qty, 0)}<span className="sr-only"> in order</span></span>}
           </button>
-        )}
-        <aside className="ticket" id="ticket" aria-label="Current order">
-          <div className="ticket-head">
-            <div className="row">
-              <h2>New order</h2>
-              <div className="spacer" />
-              <span className="mono muted small">#{shift.deviceCode}-{String(shift.seq + 1).padStart(3, '0')}</span>
-            </div>
-            <input id="cust-name" className="input" placeholder="Customer name" value={customer} onChange={(e) => setCustomer(e.target.value)} />
-            <div className="row" style={{ gap: 8 }}>
-              <div className="seg">
-                <button aria-pressed={orderType === 'dine_in'} onClick={() => setOrderType('dine_in')}>Dine in</button>
-                <button aria-pressed={orderType === 'take_out'} onClick={() => setOrderType('take_out')}>Take out</button>
-              </div>
-              {orderType === 'dine_in' && (
-                <input id="table-no" className="input" style={{ width: 90, flex: 1 }} placeholder="Table #" inputMode="numeric" value={table} onChange={(e) => setTable(e.target.value)} />
-              )}
-            </div>
-          </div>
-
-          <div className="ticket-lines">
-            {cart.length === 0 ? (
-              <div className="empty"><strong>No items yet</strong><span className="small">Tap a menu item to add it. For Senior/PWD, tap Edit on the item.</span></div>
-            ) : totals.lines.map((l) => (
-              <div className="tline" key={l.key}>
-                <span className="tname">{l.name}</span>
-                <span className="num" style={{ fontWeight: 600 }}>{peso(l.gross)}</span>
-                <div className="meta">
-                  <span className="qty">
-                    <button onClick={() => setQty(l.key, -1)} aria-label={`Remove one ${l.name}`}>−</button>
-                    <span className="num">{l.qty}</span>
-                    <button onClick={() => setQty(l.key, 1)} aria-label={`Add one ${l.name}`}>+</button>
-                  </span>
-                  <button className="btn ghost sm" onClick={() => setEditing(l.key)}>Edit</button>
-                  {l.senior && <span className="pill info">SC/PWD</span>}
-                  {l.discount > 0 && <span className="pill promo">−{peso(l.discount)}</span>}
+          <button data-color="marigold" aria-current={view === 'orders' ? 'page' : undefined} onClick={() => setView('orders')}>
+            <Icon name="list" size={24} /><span className="tab-label">Orders</span>
+            {unserved > 0 && <span className="tab-badge">{unserved}<span className="sr-only"> to serve</span></span>}
+          </button>
+          <button data-color="coral" aria-current={view === 'shift' ? 'page' : undefined} onClick={() => setView('shift')}>
+            <Icon name="cash" size={24} /><span className="tab-label">My shift</span>
+          </button>
+        </nav>
+        <div className="pos-main">
+          {view === 'orders' && <OrdersView shift={shift} staff={staff} />}
+          {view === 'shift' && <ShiftView staff={staff} shift={shift} onShiftClosed={onShiftClosed} />}
+          <div className="pos" hidden={view !== 'menu'}>
+            <section className="catalog" aria-label="Menu">
+              {activePromos.length > 0 && (
+                <div className="promo-strip">
+                  {activePromos.map((p) => <span key={p.id} className="pill promo">{p.name}</span>)}
                 </div>
-                {(l.addons.length > 0 || l.notes) && (
-                  <div className="meta muted">{[...l.addons, l.notes].filter(Boolean).join(' · ')}</div>
-                )}
+              )}
+              <div className="menu-search">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+                <input id="menu-search" ref={searchRef} type="search" autoComplete="off" placeholder="Search the menu, e.g. latte, ube, silog"
+                  value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={onSearchKey} aria-label="Search products" />
+                {search && <button className="btn ghost sm" onClick={() => { setSearch(''); searchRef.current && searchRef.current.focus(); }}>Clear</button>}
               </div>
-            ))}
-          </div>
+              {words.length > 0 ? (
+                <div className="search-note">
+                  <strong>{shown.length} {shown.length === 1 ? 'item' : 'items'}</strong> match “{search.trim()}”
+                  {shown.length > 0 && <span className="muted"> · press Enter to add the first one</span>}
+                </div>
+              ) : (<>
+              <div className="groups" role="toolbar" aria-label="Menu groups">
+                <button data-group="all" aria-pressed={group === 'all'} onClick={() => pickGroup('all')}>
+                  All <span className="gcount">{products.length}</span>
+                </button>
+                {GROUPS.map((g) => (
+                  <button key={g.id} style={{ '--g': g.color }} aria-pressed={group === g.id} onClick={() => pickGroup(g.id)}>
+                    {g.name} <span className="gcount">{products.filter((p) => groupOf(p.categoryId) === g.id).length}</span>
+                  </button>
+                ))}
+              </div>
+              {subCats.length > 1 && (
+                <div className="cats sub" role="toolbar" aria-label="Categories" style={{ '--g': GROUPS.find((g) => g.id === group).color }}>
+                  <button aria-pressed={cat === 'all'} onClick={() => setCat('all')}>All {GROUPS.find((g) => g.id === group).name.toLowerCase()}</button>
+                  {subCats.map((c) => <button key={c.id} aria-pressed={cat === c.id} onClick={() => setCat(c.id)}>{c.name}</button>)}
+                </div>
+              )}
+              </>)}
+              {shown.length === 0 && (
+                <div className="empty big">
+                  <strong>No menu item matches “{search.trim()}”</strong>
+                  <span className="small">Check the spelling, or try part of the name.</span>
+                  <button className="btn" onClick={() => setSearch('')}>Clear search</button>
+                </div>
+              )}
+              <div className="products">
+                {shown.map((p) => {
+                  const promo = activePromos.find((pr) => promoTouches(pr, p));
+                  return (
+                    <button key={p.id} className="product" style={{ '--cat': GROUPS.find((g) => g.id === groupOf(p.categoryId)).color }} disabled={!p.available} onClick={() => add(p)}>
+                      <span className="ptop">
+                        <span className="swatch" />
+                        {!p.available ? <span className="pill neutral">Sold out</span> : promo ? <span className="pill promo">Promo</span> : null}
+                      </span>
+                      <span className="name">{p.name}</span>
+                      <span className="price num">{pesoShort(p.price)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
 
-          <div className="ticket-foot">
-            {!showDisc && !customId && !voucher ? (
-              <button className="btn ghost sm" style={{ alignSelf: 'flex-start' }} onClick={() => setShowDisc(true)} disabled={!cart.length}>
-                + Add discount or voucher
+            {cart.length > 0 && view === 'menu' && (
+              <button className="mobile-orderbar btn hot lg" onClick={() => document.getElementById('ticket').scrollIntoView({ behavior: 'smooth' })}>
+                View order · {cart.reduce((n, l) => n + l.qty, 0)} items · {peso(totals.total)}
               </button>
-            ) : (
-              <div className="grid2" style={{ gap: 8 }}>
-                <select id="custom-disc" className="select" value={customId} onChange={(e) => setCustomId(e.target.value)} aria-label="Discount">
-                  <option value="">No discount</option>
-                  {discountTypes.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name} ({d.valueType === 'percent' ? `${d.value}%` : peso(d.value)})</option>
-                  ))}
-                </select>
-                {voucher ? (
-                  <button className="btn" onClick={() => { setVoucher(null); setVoucherCode(''); }}>✕ {voucher.code}</button>
+            )}
+            <aside className="ticket" id="ticket" aria-label="Current order">
+              <div className="ticket-head">
+                <div className="row">
+                  <h2>New order</h2>
+                  <div className="spacer" />
+                  <span className="mono muted small">#{shift.deviceCode}-{String(shift.seq + 1).padStart(3, '0')}</span>
+                </div>
+                <input id="cust-name" className="input" placeholder="Customer name" value={customer} onChange={(e) => setCustomer(e.target.value)} />
+                <div className="row" style={{ gap: 8 }}>
+                  <div className="seg">
+                    <button aria-pressed={orderType === 'dine_in'} onClick={() => setOrderType('dine_in')}>Dine in</button>
+                    <button aria-pressed={orderType === 'take_out'} onClick={() => setOrderType('take_out')}>Take out</button>
+                  </div>
+                  {orderType === 'dine_in' && (
+                    <input id="table-no" className="input" style={{ width: 90, flex: 1 }} placeholder="Table #" inputMode="numeric" value={table} onChange={(e) => setTable(e.target.value)} />
+                  )}
+                </div>
+              </div>
+
+              <div className="ticket-lines">
+                {cart.length === 0 ? (
+                  <div className="empty"><strong>No items yet</strong><span className="small">Tap a menu item to add it. For Senior/PWD, tap Edit on the item.</span></div>
+                ) : totals.lines.map((l) => (
+                  <div className="tline" key={l.key}>
+                    <span className="tname">{l.name}</span>
+                    <span className="num" style={{ fontWeight: 600 }}>{peso(l.gross)}</span>
+                    <div className="meta">
+                      <span className="qty">
+                        <button onClick={() => setQty(l.key, -1)} aria-label={`Remove one ${l.name}`}>−</button>
+                        <span className="num">{l.qty}</span>
+                        <button onClick={() => setQty(l.key, 1)} aria-label={`Add one ${l.name}`}>+</button>
+                      </span>
+                      <button className="btn ghost sm" onClick={() => setEditing(l.key)}>Edit</button>
+                      {l.senior && <span className="pill info">SC/PWD</span>}
+                      {l.discount > 0 && <span className="pill promo">−{peso(l.discount)}</span>}
+                    </div>
+                    {(l.addons.length > 0 || l.notes) && (
+                      <div className="meta muted">{[...l.addons, l.notes].filter(Boolean).join(' · ')}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="ticket-foot">
+                {!showDisc && !customId && !voucher ? (
+                  <button className="btn ghost sm" style={{ alignSelf: 'flex-start' }} onClick={() => setShowDisc(true)} disabled={!cart.length}>
+                    + Add discount or voucher
+                  </button>
                 ) : (
-                  <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
-                    <input id="voucher-code" className="input mono" placeholder="Voucher code" value={voucherCode} disabled={offline}
-                      onChange={(e) => setVoucherCode(e.target.value)} style={{ minWidth: 0 }} />
-                    <button className="btn sm" disabled={offline || !voucherCode.trim()} onClick={applyVoucher}>Apply</button>
+                  <div className="grid2" style={{ gap: 8 }}>
+                    <select id="custom-disc" className="select" value={customId} onChange={(e) => setCustomId(e.target.value)} aria-label="Discount">
+                      <option value="">No discount</option>
+                      {discountTypes.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name} ({d.valueType === 'percent' ? `${d.value}%` : peso(d.value)})</option>
+                      ))}
+                    </select>
+                    {voucher ? (
+                      <button className="btn" onClick={() => { setVoucher(null); setVoucherCode(''); }}>✕ {voucher.code}</button>
+                    ) : (
+                      <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+                        <input id="voucher-code" className="input mono" placeholder="Voucher code" value={voucherCode} disabled={offline}
+                          onChange={(e) => setVoucherCode(e.target.value)} style={{ minWidth: 0 }} />
+                        <button className="btn sm" disabled={offline || !voucherCode.trim()} onClick={applyVoucher}>Apply</button>
+                      </div>
+                    )}
                   </div>
                 )}
+                {(showDisc || voucher) && offline && !voucher && <span className="small muted">Vouchers need internet so the same code can't be used twice.</span>}
+                {voucherErr && <span className="small" style={{ color: 'var(--bad)' }}>{voucherErr}</span>}
+                <div className="sumrow muted"><span>Subtotal</span><span>{peso(totals.subtotal)}</span></div>
+                {totals.discounts.map((d) => (
+                  <div className="sumrow disc" key={d.label}><span>{d.label}</span><span>−{peso(d.amount)}</span></div>
+                ))}
+                <div className="sumrow muted small"><span>VAT 12% (included)</span><span>{peso(totals.vatAmount)}</span></div>
+                <div className="sumrow total"><span>Total</span><span>{peso(totals.total)}</span></div>
+                <div className="row" style={{ gap: 8 }}>
+                  <button className="btn" onClick={clear} disabled={!cart.length}>Clear</button>
+                  <button className="btn hot lg" style={{ flex: 1 }} disabled={!cart.length} onClick={() => setModal('checkout')}>
+                    Charge {peso(totals.total)}
+                  </button>
+                </div>
               </div>
-            )}
-            {(showDisc || voucher) && offline && !voucher && <span className="small muted">Vouchers need internet so the same code can't be used twice.</span>}
-            {voucherErr && <span className="small" style={{ color: 'var(--bad)' }}>{voucherErr}</span>}
-            <div className="sumrow muted"><span>Subtotal</span><span>{peso(totals.subtotal)}</span></div>
-            {totals.discounts.map((d) => (
-              <div className="sumrow disc" key={d.label}><span>{d.label}</span><span>−{peso(d.amount)}</span></div>
-            ))}
-            <div className="sumrow muted small"><span>VAT 12% (included)</span><span>{peso(totals.vatAmount)}</span></div>
-            <div className="sumrow total"><span>Total</span><span>{peso(totals.total)}</span></div>
-            <div className="row" style={{ gap: 8 }}>
-              <button className="btn" onClick={clear} disabled={!cart.length}>Clear</button>
-              <button className="btn hot lg" style={{ flex: 1 }} disabled={!cart.length} onClick={() => setModal('checkout')}>
-                Charge {peso(totals.total)}
-              </button>
-            </div>
+            </aside>
           </div>
-        </aside>
+        </div>
       </div>
 
       {editing && (() => {

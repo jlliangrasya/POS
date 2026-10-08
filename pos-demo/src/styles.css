@@ -1,4 +1,4 @@
-/* Layout: tablet-first. Cashier = top bar with live shift sales + three big tabs (Menu, Orders, My shift).
+/* Layout: tablet-first. Cashier = top bar with live shift sales + notebook-style index tabs on the left (Menu, Orders, My shift).
    Palette from the client: #F9FAF4 paper, #4A6163 slate teal, #F9A66C apricot, #FFC94B marigold, #F17A7E coral. */
 :root {
   /* Main color: #F9FAF4 paper. Accents: apricot, marigold, coral, slate teal (supporting only). */
@@ -363,14 +363,6 @@ table.t tfoot td { font-weight: 700; border-top: 2px solid var(--line); }
 .live-sales.bump { background: var(--promo-soft); transform: scale(1.04); }
 .live-sales.bump .num { color: var(--promo); }
 
-/* Cashier: three big tabs */
-.pos-tabs { display: flex; gap: 6px; padding: 8px 16px 0; background: var(--surface); border-bottom: 1px solid var(--line); overflow-x: auto; }
-.pos-tabs button {
-  flex: none; display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; cursor: pointer;
-  padding: 12px 18px; font-weight: 700; font-size: 1.02rem; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px;
-}
-.pos-tabs button:hover { color: var(--fg); }
-.pos-tabs button[aria-current='page'] { color: var(--accent); border-bottom-color: var(--hot); }
 .pill.hotpill { background: var(--hot-soft); color: var(--warn); }
 .pos[hidden] { display: none !important; }
 
@@ -388,7 +380,8 @@ table.t.clickable tbody tr[aria-selected='true'] td { background: var(--accent-s
 .empty.big { padding: 64px 16px; font-size: 1.05rem; }
 
 /* My shift screen */
-.shift-view { max-width: 1180px; width: 100%; margin: 0 auto; }
+.shift-view { max-width: 1180px; width: 100%; margin: 0 auto; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+.shift-view::-webkit-scrollbar { display: none; }
 .close-panel { border: 2px solid var(--hot); }
 .big-input { font-size: 1.6rem; min-height: 58px; }
 .denoms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-width: 620px; }
@@ -412,10 +405,6 @@ table.t.clickable tbody tr[aria-selected='true'] td { background: var(--accent-s
 }
 
 @media (max-width: 560px) {
-  .pos-tabs { padding: 4px 8px 0; gap: 0; }
-  .pos-tabs button { flex: 1; justify-content: center; padding: 10px 6px; font-size: 0.92rem; gap: 6px; flex-wrap: wrap; }
-  .pos-tabs button svg { display: none; }
-  .pos-tabs .pill { font-size: 0.7rem; padding: 1px 6px; }
 }
 
 /* ---------- Colorful pass ---------- */
@@ -434,15 +423,6 @@ table.t.clickable tbody tr[aria-selected='true'] td { background: var(--accent-s
 .live-sales.bump { background: var(--marigold); }
 .live-sales.bump .num, .live-sales.bump .label { color: var(--ink-on-color); }
 
-/* Tabs: each screen has its own color */
-.pos-tabs { background: var(--bg); }
-.pos-tabs button { border-radius: 12px 12px 0 0; }
-.pos-tabs button[data-color='apricot'][aria-current='page'] { border-bottom-color: var(--apricot); background: var(--hot-soft); color: var(--fg); }
-.pos-tabs button[data-color='marigold'][aria-current='page'] { border-bottom-color: var(--marigold); background: var(--sun-soft); color: var(--fg); }
-.pos-tabs button[data-color='coral'][aria-current='page'] { border-bottom-color: var(--coral); background: var(--accent-soft); color: var(--fg); }
-.pos-tabs button[data-color='apricot'] svg { color: var(--apricot); }
-.pos-tabs button[data-color='marigold'] svg { color: #E0A800; }
-.pos-tabs button[data-color='coral'] svg { color: var(--coral); }
 
 /* Category chips: each category wears its color when picked */
 .cats button[aria-pressed='true'] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
@@ -538,4 +518,53 @@ table.t.clickable tbody tr[aria-selected='true'] td { background: var(--accent-s
 .cats.sub button[aria-pressed='true'] {
   background: color-mix(in srgb, var(--g) 22%, var(--surface)); border-color: var(--g); color: var(--fg);
   box-shadow: inset 0 0 0 1px var(--g);
+}
+
+/* Cashier: icon tabs hugging the left screen edge, rounded side facing the content.
+   The selected tab shows its name under the icon; other tabs slide their name out on hover. */
+[data-color='apricot'] { --tab: var(--apricot); --tab-soft: var(--hot-soft); }
+[data-color='marigold'] { --tab: var(--marigold); --tab-soft: var(--sun-soft); }
+[data-color='coral'] { --tab: var(--coral); --tab-soft: var(--accent-soft); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.pos-body { flex: 1; display: flex; min-height: 0; }
+.pos-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.pos-tabs { flex: none; width: 80px; display: flex; flex-direction: column; gap: 10px; padding: 14px 0; background: var(--bg); position: relative; z-index: 4; }
+.pos-tabs button {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  width: 34px; min-height: 108px; padding: 10px 0; border: 0; border-radius: 0 14px 14px 0; cursor: pointer;
+  background: var(--tab-soft); color: var(--muted); font-weight: 700; line-height: 1.15;
+  transition: width 0.15s, background 0.15s, color 0.15s;
+}
+.pos-tabs button svg { color: var(--tab); }
+.pos-tabs button[aria-current='page'] { width: 80px; padding: 10px 4px; background: var(--tab); color: var(--ink-on-color); box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1); }
+.pos-tabs button[aria-current='page'] svg { color: currentColor; }
+
+/* Name: under the icon on the selected tab, a flyout from the tab on hover/keyboard focus. */
+.tab-label {
+  position: absolute; left: 100%; top: 0; bottom: 0; display: flex; align-items: center; padding: 0 16px 0 4px;
+  background: inherit; border-radius: 0 16px 16px 0; white-space: nowrap; color: var(--fg); font-size: 0.95rem;
+  opacity: 0; transform: translateX(-8px); pointer-events: none; transition: opacity 0.15s, transform 0.15s;
+}
+.pos-tabs button[aria-current='page'] .tab-label { position: static; padding: 0; background: none; opacity: 1; transform: none; color: inherit; font-size: 0.78rem; }
+@media (hover: hover) {
+  .pos-tabs button:not([aria-current='page']):hover { width: 44px; border-radius: 0; color: var(--fg); }
+  .pos-tabs button:not([aria-current='page']):hover .tab-label { opacity: 1; transform: none; }
+}
+.pos-tabs button:not([aria-current='page']):focus-visible .tab-label { opacity: 1; transform: none; }
+
+/* Count dot (items in the current order, orders to serve). */
+.tab-badge {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%); min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+  background: var(--fg); color: var(--bg); font-size: 0.72rem; line-height: 20px; text-align: center;
+}
+
+@media (max-width: 900px) { .pos-tabs { position: sticky; top: 0; align-self: flex-start; } }
+/* Phones: no room for a side rail, so the tabs sit along the top with their names always shown. */
+@media (max-width: 560px) {
+  .pos-body { flex-direction: column; }
+  .pos-tabs { position: relative; align-self: stretch; width: auto; flex-direction: row; gap: 4px; padding: 6px 8px 0; border-bottom: 1px solid var(--line); }
+  .pos-tabs button, .pos-tabs button[aria-current='page'] { flex: 1; width: auto; min-height: 0; flex-direction: row; gap: 6px; padding: 10px 4px; border-radius: 12px 12px 0 0; }
+  .pos-tabs button svg { width: 18px; height: 18px; }
+  .pos-tabs .tab-label, .pos-tabs button[aria-current='page'] .tab-label { position: static; padding: 0; background: none; opacity: 1; transform: none; color: inherit; font-size: 0.88rem; }
+  .tab-badge { position: static; transform: none; }
 }
