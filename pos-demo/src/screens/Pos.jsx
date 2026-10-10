@@ -1,12 +1,13 @@
 import React from 'react';
-import { useStore, uid } from '../lib/store.js';
+import { useStore, useNow, uid } from '../lib/store.js';
 import { computeOrderTotals } from '../lib/pricing.js';
 import { peso, pesoShort } from '../lib/money.js';
 import { Avatar, Icon, Modal, fmtTime, useToast } from '../components/ui.jsx';
-import { shiftSummary } from '../lib/reports.js';
+import { shiftSummary, unpaidOrders, balanceDue } from '../lib/reports.js';
 import Checkout from './Checkout.jsx';
 import OrdersView from './OrdersView.jsx';
 import ShiftView from './ShiftView.jsx';
+import UnpaidView, { payStage } from './UnpaidView.jsx';
 
 // Category stripes use the client's palette.
 // Top-level filters the cashier sees first. Categories fall under one group each.
@@ -53,9 +54,25 @@ export default function Pos({ staff, shift, onLock, onShiftClosed }) {
   const offline = useStore((s) => s.offline);
   const unserved = useStore((s) => s.orders.filter((o) => o.shiftId === shift.id && !['served', 'void'].includes(o.status)).length);
   const allOrders = useStore((s) => s.orders);
-  const live = shiftSummary(shift, allOrders);
+  const expenses = useStore((s) => s.expenses);
+  const live = shiftSummary(shift, allOrders, expenses);
   const toast = useToast();
-  const [view, setView] = React.useState('menu'); // menu | orders | shift
+  const [view, setView] = React.useState('menu'); // menu | orders | unpaid | shift
+
+  // Pay-later reminders: a persistent count in the top bar, plus a toast when someone becomes due.
+  const now = useNow(15000);
+  const unpaid = unpaidOrders(allOrders);
+  const unpaidTotal = unpaid.reduce((s, o) => s + balanceDue(o), 0);
+  const due = unpaid.filter((o) => payStage(o, now) === 'due');
+  const reminded = React.useRef(new Set(due.map((o) => o.id)));
+  React.useEffect(() => {
+    const fresh = due.filter((o) => !reminded.current.has(o.id));
+    fresh.forEach((o) => reminded.current.add(o.id));
+    if (fresh.length) {
+      const o = fresh[0];
+      toast(`Collect payment: ${o.customer}${o.table ? `, table ${o.table}` : ''} (${peso(balanceDue(o))}) was served a while ago.`);
+    }
+  }, [due.map((o) => o.id).join(), toast]);
   const [showDisc, setShowDisc] = React.useState(false);
   const [bump, setBump] = React.useState(false);
   const prevNet = React.useRef(live.net);
@@ -142,7 +159,13 @@ export default function Pos({ staff, shift, onLock, onShiftClosed }) {
             <span className="small muted">{live.count} orders</span>
           </button>
         }
-      />
+      >
+        {unpaid.length > 0 && (
+          <button className={`pill ${due.length ? 'bad' : 'warn'}`} style={{ border: 0, cursor: 'pointer' }} onClick={() => setView('unpaid')}>
+            {due.length ? `${due.length} to collect now` : `${unpaid.length} unpaid`} · {peso(unpaidTotal)}
+          </button>
+        )}
+      </PosTopBar>
       {offline && (
         <div className="offline-banner">
           <Icon name="wifi" size={18} />No internet. Keep selling: orders are saved on this tablet and sent when the connection returns. The kitchen won't see new orders until then.
@@ -158,13 +181,18 @@ export default function Pos({ staff, shift, onLock, onShiftClosed }) {
             <Icon name="list" size={24} /><span className="tab-label">Orders</span>
             {unserved > 0 && <span className="tab-badge">{unserved}<span className="sr-only"> to serve</span></span>}
           </button>
+          <button data-color="teal" aria-current={view === 'unpaid' ? 'page' : undefined} onClick={() => setView('unpaid')}>
+            <Icon name="wallet" size={24} /><span className="tab-label">Unpaid</span>
+            {unpaid.length > 0 && <span className="tab-badge">{unpaid.length}<span className="sr-only"> unpaid</span></span>}
+          </button>
           <button data-color="coral" aria-current={view === 'shift' ? 'page' : undefined} onClick={() => setView('shift')}>
             <Icon name="cash" size={24} /><span className="tab-label">My shift</span>
           </button>
         </nav>
         <div className="pos-main">
           {view === 'orders' && <OrdersView shift={shift} staff={staff} />}
-          {view === 'shift' && <ShiftView staff={staff} shift={shift} onShiftClosed={onShiftClosed} />}
+          {view === 'unpaid' && <UnpaidView staff={staff} shift={shift} />}
+          {view === 'shift' && <ShiftView staff={staff} shift={shift} onShiftClosed={onShiftClosed} onCollect={() => setView('unpaid')} />}
           <div className="pos" hidden={view !== 'menu'}>
             <section className="catalog" aria-label="Menu">
               {activePromos.length > 0 && (

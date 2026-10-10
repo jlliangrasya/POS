@@ -3,7 +3,7 @@
 import React from 'react';
 import { buildSeed } from './seed.js';
 
-const KEY = 'tasa-pos-demo-v3';
+const KEY = 'tasa-pos-demo-v4';
 let state = load();
 const listeners = new Set();
 let channel = null;

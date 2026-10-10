@@ -238,6 +238,13 @@ export function buildSeed(now = new Date()) {
     if (mins === 9) o.items[0].served = true;
     orders.push(o);
   });
+  // Two dine-in customers paying after they eat: one already served and due for a reminder.
+  [[38, 'served'], [12, 'preparing']].forEach(([mins, status]) => {
+    const o = makeOrder(r, { shift: current, at: new Date(now.getTime() - mins * 60000), seq: ++seq, cashier: cashier.id, promos: activePromos, status });
+    Object.assign(o, { type: 'dine_in', table: mins === 38 ? '4' : '7', payments: [], tendered: 0, change: 0, payLater: true });
+    if (status === 'served') o.servedAt = new Date(now.getTime() - 24 * 60000).toISOString();
+    orders.push(o);
+  });
   current.seq = seq;
   shifts.push(current);
   for (const st of staffFor(tpl)) {
@@ -260,6 +267,11 @@ export function buildSeed(now = new Date()) {
     const day = new Date(now); day.setDate(day.getDate() - d); day.setHours(10, 0, 0, 0);
     expenses.push({ id: `e-${i}`, date: dayKey(day), category, amount: P(amt), notes, createdBy: 'owner' });
   });
+  // Paid out of the cash drawer during the current shift.
+  [[95, 'Supplies', 240, 'Ice, 3 bags'], [50, 'Others', 60, 'Tricycle fare, supply run']].forEach(([mins, category, amt, notes], i) => {
+    const at = new Date(Math.max(now.getTime() - mins * 60000, slot.start.getTime() + 20 * 60000));
+    expenses.push({ id: `e-shift-${i}`, date: dayKey(at), at: at.toISOString(), category, amount: P(amt), notes, createdBy: cashier.id, shiftId: current.id });
+  });
 
   const vouchers = [
     { id: 'v-1', code: 'TASA-7KQ2', valueType: 'fixed', value: P(50), expiresAt: dayKey(new Date(now.getTime() + 20 * 864e5)), createdBy: cashier.id, redeemedAt: null },
@@ -267,7 +279,7 @@ export function buildSeed(now = new Date()) {
   ];
 
   return {
-    version: 3,
+    version: 4,
     seededAt: now.toISOString(),
     company: { name: 'Cafe Adullam x Amoa', branch: 'Main branch', plan: 'business', vatRegistered: true, deviceCode: 'A' },
     categories: CATEGORIES,

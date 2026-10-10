@@ -34,3 +34,5 @@ export function toggleItemServed(orderId, key) {
 export const nextStatus = (s) => ORDER[ORDER.indexOf(s) + 1];
 export const NEXT_LABEL = { pending: 'Start preparing', preparing: 'Mark ready', ready: 'Mark served' };
 export const LATE_MINUTES = 15;
+/** Remind the cashier to collect once a pay-later order has been served this long. */
+export const PAY_REMINDER_MINUTES = 10;

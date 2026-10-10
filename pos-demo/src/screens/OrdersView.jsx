@@ -2,6 +2,7 @@ import React from 'react';
 import { useStore, useNow } from '../lib/store.js';
 import { setStatus, toggleItemServed, nextStatus, NEXT_LABEL, LATE_MINUTES } from '../lib/orders.js';
 import { peso } from '../lib/money.js';
+import { balanceDue } from '../lib/reports.js';
 import { STATUS_LABEL, PAY_LABEL, fmtTime, minsSince } from '../components/ui.jsx';
 import { OrderSlip } from './Checkout.jsx';
 
@@ -62,6 +63,7 @@ export default function OrdersView({ shift, staff }) {
                   <span className={`pill ${STATUS_PILL[o.status]}`}>{STATUS_LABEL[o.status]}</span>
                   <span className="muted">{o.type === 'dine_in' ? `Table ${o.table || '—'}` : 'Take out'}</span>
                   {!o.synced && <span className="pill warn">Not sent yet</span>}
+                  {balanceDue(o) > 0 && <span className="pill warn">Pay later</span>}
                 </div>
                 <div className="kitems">
                   {o.items.map((i) => (
@@ -103,7 +105,7 @@ export default function OrdersView({ shift, staff }) {
                       <td className="mono">{o.no}</td>
                       <td>{fmtTime(o.createdAt)}</td>
                       <td>{o.customer}</td>
-                      <td>{o.payments.map((p) => PAY_LABEL[p.method]).join(' + ')}</td>
+                      <td>{o.payments.length ? o.payments.map((p) => PAY_LABEL[p.method]).join(' + ') : balanceDue(o) > 0 ? <span className="pill warn">Unpaid</span> : '—'}</td>
                       <td><span className={`pill ${STATUS_PILL[o.status]}`}>{STATUS_LABEL[o.status]}</span></td>
                       <td className="r">{peso(o.total)}</td>
                     </tr>

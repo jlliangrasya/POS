@@ -4,10 +4,13 @@ import { peso, toCentavos } from '../lib/money.js';
 import { dayKey } from '../lib/seed.js';
 import { fmtDateLong, useToast } from '../components/ui.jsx';
 
-const CATS = ['Supplies', 'Rent', 'Utilities', 'Repairs', 'Others'];
+export const EXPENSE_CATS = ['Supplies', 'Rent', 'Utilities', 'Repairs', 'Others'];
+const CATS = EXPENSE_CATS;
 
 export default function Expenses() {
   const expenses = useStore((s) => s.expenses);
+  const shifts = useStore((s) => s.shifts);
+  const staff = useStore((s) => s.staff);
   const toast = useToast();
   const [f, setF] = React.useState({ date: dayKey(new Date()), category: 'Supplies', amount: '', notes: '' });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -15,6 +18,14 @@ export default function Expenses() {
   const total = expenses.reduce((s, e) => s + e.amount, 0);
   const byCat = CATS.map((c) => ({ c, v: expenses.filter((e) => e.category === c).reduce((s, e) => s + e.amount, 0) })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
   const max = Math.max(...byCat.map((x) => x.v), 1);
+  const fromDrawer = expenses.filter((e) => e.shiftId).reduce((s, e) => s + e.amount, 0);
+  // Expenses a cashier took from the drawer name the shift and the cashier.
+  const source = (e) => {
+    if (!e.shiftId) return 'Owner';
+    const sh = shifts.find((x) => x.id === e.shiftId);
+    const st = staff.find((x) => x.id === e.createdBy);
+    return `Drawer · ${sh ? sh.label : 'Shift'}${st ? `, ${st.name.split(' ')[0]}` : ''}`;
+  };
 
   const add = (e) => {
     e.preventDefault();
@@ -46,13 +57,13 @@ export default function Expenses() {
           <h3>Last 14 days</h3>
           <div className="tablewrap">
             <table className="t">
-              <thead><tr><th>Date</th><th>Category</th><th>Notes</th><th className="r">Amount</th></tr></thead>
+              <thead><tr><th>Date</th><th>Category</th><th>Notes</th><th>Paid by</th><th className="r">Amount</th></tr></thead>
               <tbody>
                 {sorted.map((e) => (
-                  <tr key={e.id}><td>{fmtDateLong(e.date + 'T00:00')}</td><td>{e.category}</td><td className="muted">{e.notes}</td><td className="r">{peso(e.amount)}</td></tr>
+                  <tr key={e.id}><td>{fmtDateLong(e.date + 'T00:00')}</td><td>{e.category}</td><td className="muted">{e.notes}</td><td>{e.shiftId ? <span className="pill warn">{source(e)}</span> : <span className="muted">Owner</span>}</td><td className="r">{peso(e.amount)}</td></tr>
                 ))}
               </tbody>
-              <tfoot><tr><td colSpan={3}>Total</td><td className="r">{peso(total)}</td></tr></tfoot>
+              <tfoot><tr><td colSpan={4}>Total</td><td className="r">{peso(total)}</td></tr></tfoot>
             </table>
           </div>
         </section>
@@ -66,7 +77,7 @@ export default function Expenses() {
               </div>
             ))}
           </div>
-          <p className="small muted">Expenses feed the net profit on the Reports page.</p>
+          <p className="small muted">Expenses feed the net profit on the Reports page. {peso(fromDrawer)} of these were paid by cashiers from the cash drawer during shifts.</p>
         </section>
       </div>
     </>

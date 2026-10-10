@@ -3,6 +3,7 @@ import { useStore, useNow } from '../lib/store.js';
 import { setStatus, toggleItemServed, nextStatus, NEXT_LABEL, LATE_MINUTES } from '../lib/orders.js';
 import { Icon, minsSince, fmtTime } from '../components/ui.jsx';
 import { PosTopBar } from './Pos.jsx';
+import { balanceDue } from '../lib/reports.js';
 
 const COLS = [
   { status: 'pending', title: 'New', pill: 'info' },
@@ -53,6 +54,7 @@ export default function Kitchen() {
                       <div className="row small muted" style={{ gap: 8 }}>
                         <span>{o.type === 'dine_in' ? `Dine in · Table ${o.table || '—'}` : 'Take out'}</span>
                         <span>Ordered {fmtTime(o.createdAt)}</span>
+                        {balanceDue(o) > 0 && <span className="pill warn">Pays after meal</span>}
                       </div>
                       {late && <span className="pill bad">Waiting too long</span>}
                       <div>

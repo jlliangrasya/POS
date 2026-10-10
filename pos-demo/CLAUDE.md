@@ -57,7 +57,7 @@ Every table has: `id uuid primary key` (generated on the client with `crypto.ran
 
 - `staff`: branch_id, name, position, role, pin_hash, face_descriptor `float4[]`, face_model_version, pay_type (`hourly` | `daily` | `monthly`), rate, active
 - `shift_templates`: branch_id, name, start_time, end_time (defaults: 07:00–16:00, 16:00–00:00)
-- `shifts`: branch_id, template_id, device_id, opened_by, opened_at, closed_at, closed_by, starting_cash, counted_cash, expected_cash, over_short, status (`open` | `closed`)
+- `shifts`: branch_id, template_id, device_id, opened_by, opened_at, closed_at, closed_by, starting_cash, counted_cash, expected_cash (starting cash + cash received − drawer expenses), over_short, expenses_total, status (`open` | `closed`)
 - `attendance`: branch_id, staff_id, shift_id, time_in, time_out, method (`face` | `pin`), flagged bool, late_minutes
 
 **Catalog**
@@ -68,9 +68,9 @@ Every table has: `id uuid primary key` (generated on the client with `crypto.ran
 
 **Orders**
 
-- `orders`: branch_id, shift_id, device_id, order_no (`{device.code}-{seq per shift}`, e.g., `A-012`), customer_name, order_type (`dine_in` | `take_out`), table_no, status (`pending` | `preparing` | `ready` | `served` | `void`), subtotal, discount_total, vat_amount, total, created_by (staff_id), served_at
+- `orders`: branch_id, shift_id, device_id, order_no (`{device.code}-{seq per shift}`, e.g., `A-012`), customer_name, order_type (`dine_in` | `take_out`), table_no, status (`pending` | `preparing` | `ready` | `served` | `void`), subtotal, discount_total, vat_amount, total, pay_later bool, paid_at, created_by (staff_id), served_at. Balance due = total − sum of payments; a pay-later order has no payments until collected
 - `order_items`: order_id, product_id, name and unit_price and unit_cost (snapshots at time of sale), qty, addons jsonb, notes, served bool
-- `payments`: order_id, method (`cash` | `gcash` | `maya` | `card`), amount, reference_no, change_given
+- `payments`: order_id, shift_id (the shift that took the money; may differ from the order's shift for pay-later), taken_by (staff_id), method (`cash` | `gcash` | `maya` | `card`), amount, reference_no, change_given
 - `order_discounts`: order_id, source (`senior` | `pwd` | `custom` | `promo` | `voucher`), source_id, amount, id_number, holder_name
 
 **Promos and vouchers**
@@ -81,7 +81,7 @@ Every table has: `id uuid primary key` (generated on the client with `crypto.ran
 
 **Back office (Business plan)**
 
-- `expenses`: branch_id, category, amount, expense_date, notes, created_by
+- `expenses`: branch_id, shift_id (set when a cashier pays it from the cash drawer during a shift; null for owner-paid), category, amount, expense_date, notes, created_by
 - `payroll_runs`: branch_id, period_start, period_end, status (`draft` | `final`)
 - `payroll_items`: run_id, staff_id, hours, days, late_minutes, overtime_hours, gross, deductions jsonb, net
 
@@ -102,8 +102,8 @@ with check (company_id = auth_company_id())
 
 Extra rules:
 
-- `device` role: only rows where `branch_id = auth_branch_id()`; insert/update only on `orders`, `order_items`, `payments`, `order_discounts`, `shifts`, `attendance`, `vouchers`; read-only on catalog, promos, staff.
-- `device` role cannot read `unit_cost`, profit, payroll, or expenses. Expose catalog to devices through a view without cost columns.
+- `device` role: only rows where `branch_id = auth_branch_id()`; insert/update only on `orders`, `order_items`, `payments`, `order_discounts`, `shifts`, `attendance`, `vouchers`; read-only on catalog, promos, staff. May insert, read, and delete `expenses` only where `shift_id` is an open shift of its branch.
+- `device` role cannot read `unit_cost`, profit, payroll, or expenses outside its open shift. Expose catalog to devices through a view without cost columns.
 - Only `owner`/`admin` can write catalog, promos, discount types, staff, expenses, payroll.
 - `super_admin` bypasses company filter for `companies` only.
 - Suspended companies: policies also check `companies.status = 'active'`.
@@ -133,6 +133,12 @@ Extra local tables:
 - **Conflicts:** last write wins by `updated_at`, except order status, which keeps the most advanced value.
 - **Offline UI:** show a clear banner on POS and kitchen when offline: "Offline — kitchen is not receiving new orders."
 - **Vouchers:** redeeming a voucher requires a connection (check and mark redeemed server-side). Offline, the button is disabled with a message. This prevents double use across devices.
+
+## Shift cash and pay-later
+
+- **Pay later:** at payment the cashier can pick "Pay after eating". The order goes to the kitchen with no payments and needs a customer name or table. It stays on the POS Unpaid tab (across shifts) until collected; once served for `PAY_REMINDER_MINUTES` it moves to "collect now" and the cashier gets a reminder.
+- **Shift expenses:** cash a cashier takes from the drawer during a shift (ice, LPG) is an `expenses` row with `shift_id`. It lowers expected cash and counts in the owner's expenses.
+- **Shift reconciliation:** total sales = cash on hand (drawer less starting cash) + GCash + Maya + card + drawer expenses + not yet paid − collected for earlier shifts. `shiftSummary` in `src/lib/reports.js` computes each part.
 
 ## Face time-in
 
